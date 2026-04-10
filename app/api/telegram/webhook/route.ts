@@ -3,9 +3,6 @@ import { getEnabledServices, getEnabledAlertChannels } from '@/lib/db'
 import { runCheck } from '@/lib/checkers'
 import { sendReport } from '@/lib/telegram'
 
-// Telegram sends updates to this endpoint.
-// Register with: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://your-domain/api/telegram/webhook
-
 export async function POST(req: NextRequest) {
   let body: TelegramUpdate
   try {
@@ -14,36 +11,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 400 })
   }
 
+  console.log('[webhook] update:', JSON.stringify(body))
+
   const message = body.message ?? body.channel_post
   if (!message?.text) return NextResponse.json({ ok: true })
 
-  const text = message.text.trim()
-  const botUsername = process.env.TELEGRAM_BOT_USERNAME
+  const text = message.text.trim().toLowerCase()
+  const botUsername = (process.env.TELEGRAM_BOT_USERNAME ?? '').toLowerCase()
 
-  // Respond to: "@botname report", "@botname status", or just "/report" (in private chat)
-  const mentioned = botUsername && text.includes(`@${botUsername}`)
+  // Trigger if:
+  // 1. Message contains a @mention entity pointing to this bot
+  // 2. Message text contains @botusername (fallback)
+  // 3. Message is /report or /status command
+  const hasMentionEntity = (message.entities ?? []).some(
+    e => e.type === 'mention' &&
+      message.text!.slice(e.offset, e.offset + e.length).toLowerCase() === `@${botUsername}`
+  )
+  const hasMentionText = botUsername && text.includes(`@${botUsername}`)
   const isCommand = text.startsWith('/report') || text.startsWith('/status')
-  const isMentionWithKeyword = mentioned &&
-    (text.toLowerCase().includes('report') || text.toLowerCase().includes('status'))
 
-  if (!isCommand && !isMentionWithKeyword) {
-    return NextResponse.json({ ok: true })
-  }
+  const shouldTrigger = isCommand || hasMentionEntity || hasMentionText
+
+  console.log(`[webhook] text="${text}" botUsername="${botUsername}" hasMentionEntity=${hasMentionEntity} hasMentionText=${hasMentionText} isCommand=${isCommand} shouldTrigger=${shouldTrigger}`)
+
+  if (!shouldTrigger) return NextResponse.json({ ok: true })
 
   const channels = getEnabledAlertChannels()
   const services = getEnabledServices()
 
-  if (channels.length === 0 || services.length === 0) {
+  if (services.length === 0) {
+    console.log('[webhook] no enabled services, skipping')
     return NextResponse.json({ ok: true })
   }
 
-  // Run checks and send report in background — respond to Telegram immediately
+  if (channels.length === 0) {
+    console.log('[webhook] no alert channels, skipping')
+    return NextResponse.json({ ok: true })
+  }
+
+  console.log(`[webhook] triggering report for ${services.length} services`)
+
   void (async () => {
-    const results = await Promise.all(services.map(s => runCheck(s)))
-    await sendReport(results, services, channels)
+    try {
+      const results = await Promise.all(services.map(s => runCheck(s)))
+      await sendReport(results, services, channels)
+      console.log('[webhook] report sent')
+    } catch (err) {
+      console.error('[webhook] error running report:', err)
+    }
   })()
 
   return NextResponse.json({ ok: true })
+}
+
+interface TelegramEntity {
+  type: string
+  offset: number
+  length: number
 }
 
 interface TelegramUpdate {
@@ -54,4 +78,5 @@ interface TelegramUpdate {
 interface TelegramMessage {
   text?: string
   chat: { id: number }
+  entities?: TelegramEntity[]
 }

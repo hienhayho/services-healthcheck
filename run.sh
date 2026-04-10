@@ -85,7 +85,7 @@ fi
 
 # ── Build image ───────────────────────────────────────────────────────────────
 echo "🔨 Building Docker image: $IMAGE_NAME"
-docker build -t "$IMAGE_NAME" .
+docker build --no-cache -t "$IMAGE_NAME" .
 
 # ── Stop & remove existing container ─────────────────────────────────────────
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
