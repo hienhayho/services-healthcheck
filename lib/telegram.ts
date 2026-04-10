@@ -49,7 +49,8 @@ export function formatReport(results: CheckResult[], services: Service[]): strin
       const lat = formatLatency(r.latency_ms)
       return `✅ <b>${name}</b>  <code>${lat}</code>`
     })
-    return `${header}\n\n${lines.join('\n')}`
+    const divider = '┄'.repeat(28)
+    return `${header}\n${divider}\n${lines.join('\n')}`
   }
 
   // Has issues: compact OK lines at top, full cards only for non-OK
@@ -76,7 +77,7 @@ export function formatReport(results: CheckResult[], services: Service[]): strin
       return `${icon} <b>${name}</b>  <i>${type}</i>\n<b>${label}</b>  <code>${lat}</code>${errorLine}`
     })
 
-  const parts: string[] = [header]
+  const parts: string[] = [header, divider]
   if (okLines.length > 0) parts.push(okLines.join('\n'))
   if (issueCards.length > 0) parts.push(`${divider}\n${issueCards.join(`\n${divider}\n`)}\n${divider}`)
 
