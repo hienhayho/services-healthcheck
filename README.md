@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Services Healthcheck
 
-## Getting Started
+A self-hosted dashboard for monitoring LLM, embedding, and HTTP services. Runs scheduled health checks via cron, displays results in a web UI, and sends reports to Telegram.
 
-First, run the development server:
+## Deploy with run.sh
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Create `.env.local`:
+
+```env
+AUTH_USERNAME=admin
+AUTH_PASSWORD=your-password
+AUTH_SECRET=a-long-random-secret-string
+DEGRADED_THRESHOLD_MS=3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then run:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+bash run.sh --port 3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This builds the Docker image and starts the container. The SQLite database persists in `./data/`. To stop:
 
-## Learn More
+```bash
+bash down_service.sh
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Dev Installation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Requires Node.js 20+ and pnpm.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+# fill in AUTH_USERNAME, AUTH_PASSWORD, AUTH_SECRET in .env.local
+pnpm dev
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000).
