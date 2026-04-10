@@ -93,8 +93,10 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
   docker rm -f "$CONTAINER_NAME" > /dev/null
 fi
 
-# ── Create data directory ─────────────────────────────────────────────────────
+# ── Create data directory with correct ownership ──────────────────────────────
 mkdir -p "$DATA_DIR"
+# Container runs as UID 1001 (nextjs). Ensure the host dir is writable by that user.
+chown 1001:1001 "$DATA_DIR" 2>/dev/null || true
 
 # ── Run container ─────────────────────────────────────────────────────────────
 echo "🚀 Starting container on port $PORT"
