@@ -4,6 +4,15 @@ import { runCheck } from '@/lib/checkers'
 import { sendReport } from '@/lib/telegram'
 
 export async function POST(req: NextRequest) {
+  // Verify request is from Telegram using secret token
+  const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET
+  if (secretToken) {
+    const incoming = req.headers.get('x-telegram-bot-api-secret-token')
+    if (incoming !== secretToken) {
+      return NextResponse.json({ ok: false }, { status: 401 })
+    }
+  }
+
   let body: TelegramUpdate
   try {
     body = await req.json()
