@@ -40,7 +40,7 @@ export function SendReportButton() {
       {state === 'error' && <AlertCircle className="h-3.5 w-3.5" />}
       {state === 'idle' && <Send className="h-3.5 w-3.5" />}
       {state === 'idle' && 'Send Report'}
-      {state === 'loading' && 'Sending…'}
+      {state === 'loading' && 'Checking…'}
       {(state === 'ok' || state === 'error') && msg}
     </button>
   )
