@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react'
+import { MessageCircle, X, Send, Bot, User, Loader2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Channel {
   id: number
@@ -33,6 +35,8 @@ export function WebhookChatTester() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loadingChannels, setLoadingChannels] = useState(false)
+  const [historyLength, setHistoryLength] = useState(0)
+  const [clearingHistory, setClearingHistory] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -90,6 +94,7 @@ export function WebhookChatTester() {
       }
 
       setMessages(prev => [...prev, { id: nextId(), from: 'bot', text: replyText }])
+      if (typeof data.historyLength === 'number') setHistoryLength(data.historyLength)
     } catch (err) {
       setMessages(prev => [
         ...prev,
@@ -98,6 +103,17 @@ export function WebhookChatTester() {
     } finally {
       setSending(false)
       setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }
+
+  async function clearHistory() {
+    setClearingHistory(true)
+    try {
+      await fetch('/api/telegram/simulate', { method: 'DELETE' })
+      setHistoryLength(0)
+      setMessages([{ id: nextId(), from: 'bot', text: 'Conversation history cleared.' }])
+    } finally {
+      setClearingHistory(false)
     }
   }
 
@@ -137,6 +153,17 @@ export function WebhookChatTester() {
               <p className="text-sm font-semibold leading-none">Webhook Tester</p>
               <p className="text-xs text-muted-foreground mt-0.5">Simulate Telegram messages</p>
             </div>
+            {historyLength > 0 && (
+              <span className="text-xs text-muted-foreground">{historyLength} turns</span>
+            )}
+            <button
+              onClick={clearHistory}
+              disabled={clearingHistory || historyLength === 0}
+              className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+              title="Clear conversation history"
+            >
+              {clearingHistory ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </button>
             <button
               onClick={() => setOpen(false)}
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -208,7 +235,29 @@ export function WebhookChatTester() {
                     ? 'rounded-br-sm bg-primary text-primary-foreground'
                     : 'rounded-bl-sm bg-muted text-foreground'
                 )}>
-                  {msg.text}
+                  {msg.from === 'user' ? msg.text : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                        code: ({ children, className }) => {
+                          const isBlock = className?.includes('language-')
+                          return isBlock
+                            ? <code className="block whitespace-pre-wrap break-all rounded bg-black/10 dark:bg-white/10 px-2 py-1 text-xs font-mono mt-1">{children}</code>
+                            : <code className="rounded bg-black/10 dark:bg-white/10 px-1 py-0.5 text-xs font-mono">{children}</code>
+                        },
+                        pre: ({ children }) => <pre className="overflow-x-auto">{children}</pre>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1">{children}</ol>,
+                        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 opacity-80 hover:opacity-100">{children}</a>,
+                        blockquote: ({ children }) => <blockquote className="border-l-2 border-current pl-2 opacity-70 italic">{children}</blockquote>,
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  )}
                 </div>
               </div>
             ))}

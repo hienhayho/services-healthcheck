@@ -53,11 +53,12 @@ export async function processWebhookUpdate(
   }
 
   // Normalise "@botname /command" → "/command"
+  // Use textLower only for the prefix check; slice from the original `text` to preserve casing.
   const mentionPrefix = botUsername ? `@${botUsername}` : null
   const commandText = (
     mentionPrefix && textLower.startsWith(mentionPrefix)
-      ? textLower.slice(mentionPrefix.length).trimStart()
-      : textLower
+      ? text.slice(mentionPrefix.length).trimStart()
+      : text
   )
 
   const ctx = {

@@ -5,9 +5,11 @@
 import { getServicesStatusTool } from '@/lib/agent-tools/get-services-status'
 import { searchServiceTool } from '@/lib/agent-tools/search-service'
 import { listServicesTool } from '@/lib/agent-tools/list-services'
+import { getUserDailyActivityTool } from '@/lib/agent-tools/get-user-daily-activity'
 
 export const agentTools = [
   listServicesTool,
   searchServiceTool,
   getServicesStatusTool,
+  getUserDailyActivityTool,
 ]

@@ -1,4 +1,5 @@
 import { Agent, run, setDefaultOpenAIClient, setOpenAIAPI, setTracingDisabled } from '@openai/agents'
+import type { AgentInputItem } from '@openai/agents'
 import { OpenAI } from 'openai'
 import { sendMessage } from '@/lib/telegram'
 import { agentTools } from '@/lib/agent-tools'
@@ -19,6 +20,34 @@ import type { BotCommand, CommandContext, CommandResult } from '@/lib/commands/t
  */
 
 let clientInitialized = false
+
+/**
+ * In-memory conversation history keyed by Telegram chat.id.
+ * Stores the full history array returned by the agents SDK after each run,
+ * which is passed back on the next turn for multi-turn context.
+ * Capped at MAX_HISTORY_TURNS to prevent unbounded memory growth.
+ */
+const MAX_HISTORY_TURNS = 20
+const chatHistories = new Map<number, AgentInputItem[]>()
+
+function getHistory(chatId: number): AgentInputItem[] {
+  return chatHistories.get(chatId) ?? []
+}
+
+function saveHistory(chatId: number, history: AgentInputItem[]): void {
+  const trimmed = history.length > MAX_HISTORY_TURNS
+    ? history.slice(history.length - MAX_HISTORY_TURNS)
+    : history
+  chatHistories.set(chatId, trimmed)
+}
+
+export function clearHistory(chatId: number): void {
+  chatHistories.delete(chatId)
+}
+
+export function getHistoryLength(chatId: number): number {
+  return chatHistories.get(chatId)?.length ?? 0
+}
 
 function ensureClient(): void {
   if (clientInitialized) return
@@ -102,7 +131,7 @@ function buildFetchWithExtraBody(extraBody: Record<string, unknown>): typeof fet
   }
 }
 
-function buildAgent(): Agent {
+function buildAgent(userMessage: string): Agent {
   return new Agent({
     name: 'Healthcheck Assistant',
     model: process.env.OPENAI_MODEL_NAME!,
@@ -110,14 +139,18 @@ function buildAgent(): Agent {
       'You are a helpful assistant embedded in a services healthcheck monitoring tool.',
       'Use available tools to answer questions about service health and status.',
       'Answer questions concisely. Keep replies short and suitable for a Telegram message.',
-    ].join(' '),
+      'Always respond in the same language the user used in their message.',
+      'IMPORTANT: When passing string arguments to tools, always use the EXACT string the user provided.',
+      'Never normalize, lowercase, uppercase, or modify string values — pass them verbatim.',
+      `The user's exact message for this turn (copy string values verbatim, do NOT alter casing): "${userMessage}"`,
+    ].join('\n'),
     tools: agentTools,
   })
 }
 
 async function replyToChat(ctx: CommandContext, text: string): Promise<void> {
   const chatId = ctx.message.chat.id
-  if (chatId === 0) return // simulate mode — reply returned via CommandResult.reply
+  if (chatId === 0) return
   const { getEnabledAlertChannels } = await import('@/lib/db')
   const channels = getEnabledAlertChannels()
   if (channels.length > 0) {
@@ -146,13 +179,22 @@ export const chatCommand: BotCommand = {
 
     ensureClient()
 
-    console.log(`[commands/chat] running agent for: "${userMessage}"`)
+    const chatId = ctx.message.chat.id
+    const history = getHistory(chatId)
+    console.log(`[commands/chat] running agent for: "${userMessage}" (history: ${history.length} items, chat: ${chatId})`)
 
     let agentReply: string
     try {
-      const agent = buildAgent()
-      const result = await run(agent, userMessage)
+      const agent = buildAgent(userMessage)
+      // Append the new user message to existing history for multi-turn context
+      const input: AgentInputItem[] = [
+        ...history,
+        { role: 'user', content: userMessage },
+      ]
+      const result = await run(agent, input)
       agentReply = result.finalOutput ?? '(no response)'
+      // Persist the updated history for the next turn
+      saveHistory(chatId, result.history as AgentInputItem[])
     } catch (err) {
       console.error('[commands/chat] agent error:', err)
       agentReply = `❌ Agent error: ${err instanceof Error ? err.message : 'unknown'}`

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { processWebhookUpdate } from '@/lib/webhook'
 import { getAlertChannels } from '@/lib/db'
+import { clearHistory, getHistoryLength } from '@/lib/commands/chat'
 
 /**
  * Simulates a Telegram webhook update for testing purposes.
@@ -45,5 +46,11 @@ export async function POST(req: NextRequest) {
     body.channelId
   )
 
-  return NextResponse.json({ ok: true, ...result })
+  return NextResponse.json({ ok: true, historyLength: getHistoryLength(0), ...result })
+}
+
+/** DELETE — clear conversation history for the simulate chat (chat.id = 0) */
+export async function DELETE() {
+  clearHistory(0)
+  return NextResponse.json({ ok: true, message: 'History cleared' })
 }
