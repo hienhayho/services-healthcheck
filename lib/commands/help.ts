@@ -43,8 +43,9 @@ export function makeHelpCommand(getCommands: () => BotCommand[]): BotCommand {
         `<i>Available commands for ${botUsername}:</i>`,
         '',
       ]
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       for (const cmd of cmds) {
-        htmlLines.push(cmd.usage.map(u => `<code>${u}</code>`).join('  '))
+        htmlLines.push(cmd.usage.map(u => `<code>${escHtml(u)}</code>`).join('  '))
         htmlLines.push(`  ${cmd.description}`)
         htmlLines.push('')
       }
