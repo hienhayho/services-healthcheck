@@ -1,4 +1,4 @@
-import { AlertChannel, CheckResult, Service } from './db'
+import { AlertChannel, CheckResult, Service } from '@/lib/db'
 
 function formatLatency(latency_ms: number | null): string {
   if (latency_ms === null) return 'timeout'
@@ -84,6 +84,31 @@ export function formatReport(results: CheckResult[], services: Service[]): strin
   return parts.join('\n\n')
 }
 
+/**
+ * Send an HTML-formatted message to a single Telegram chat.
+ * Returns { ok, error } — never throws.
+ */
+export async function sendMessage(
+  botToken: string,
+  chatId: string | number,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      return { ok: false, error: `HTTP ${res.status}: ${body}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'unknown error' }
+  }
+}
+
 export async function sendReport(
   results: CheckResult[],
   services: Service[],
@@ -94,44 +119,19 @@ export async function sendReport(
   await Promise.allSettled(
     channels
       .filter(c => c.enabled)
-      .map(channel =>
-        fetch(`https://api.telegram.org/bot${channel.bot_token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: channel.chat_id,
-            text,
-            parse_mode: 'HTML',
-          }),
-        }).then(async res => {
-          if (!res.ok) {
-            const body = await res.text()
-            console.error(`[telegram] Failed to send to channel ${channel.id}: ${res.status} ${body}`)
-          }
-        }).catch(err => {
-          console.error(`[telegram] Error sending to channel ${channel.id}:`, err)
-        })
-      )
+      .map(async channel => {
+        const result = await sendMessage(channel.bot_token, channel.chat_id, text)
+        if (!result.ok) {
+          console.error(`[telegram] Failed to send to channel ${channel.id}: ${result.error}`)
+        }
+      })
   )
 }
 
 export async function sendTestMessage(channel: AlertChannel): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${channel.bot_token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: channel.chat_id,
-        text: `✅ Test message from <b>Services Healthcheck</b>\n\nChannel: <code>${channel.name}</code>`,
-        parse_mode: 'HTML',
-      }),
-    })
-    if (!res.ok) {
-      const body = await res.text()
-      return { ok: false, error: `HTTP ${res.status}: ${body}` }
-    }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'unknown error' }
-  }
+  return sendMessage(
+    channel.bot_token,
+    channel.chat_id,
+    `✅ Test message from <b>Services Healthcheck</b>\n\nChannel: <code>${channel.name}</code>`
+  )
 }

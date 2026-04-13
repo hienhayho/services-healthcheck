@@ -1,7 +1,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // Validate required env vars before anything else
-    const required = ['AUTH_USERNAME', 'AUTH_PASSWORD', 'AUTH_SECRET']
+    const required = ['AUTH_USERNAME', 'AUTH_PASSWORD', 'AUTH_SECRET', 'OPENAI_BASE_URL', 'OPENAI_API_KEY', 'OPENAI_MODEL_NAME', 'LITELLM_API_URL', 'LITELLM_BEARER_TOKEN']
     const unset = required.filter(k => {
       const v = process.env[k]
       return !v || v === '__unset__' || v === 'build-time-placeholder'

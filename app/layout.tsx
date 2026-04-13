@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import './globals.css'
 import { AppSidebar } from '@/components/sidebar'
 import { ProgressBar } from '@/components/progress-bar'
+import { WebhookChatTester } from '@/components/webhook-chat-tester'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { cookies } from 'next/headers'
@@ -39,6 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <main className="flex-1 p-6 main-grid-bg min-h-[calc(100vh-3.25rem)]">
                   {children}
                 </main>
+                <WebhookChatTester />
               </SidebarInset>
             </SidebarProvider>
           ) : (

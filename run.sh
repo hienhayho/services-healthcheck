@@ -25,9 +25,14 @@ while [[ $# -gt 0 ]]; do
       echo "  --port <port>   Port to run on (default: 3000)"
       echo ""
       echo "Environment variables (loaded from .env.local if present):"
-      echo "  AUTH_USERNAME        Login username"
-      echo "  AUTH_PASSWORD        Login password"
-      echo "  AUTH_SECRET          JWT signing secret (use a long random string)"
+      echo "  AUTH_USERNAME          Login username"
+      echo "  AUTH_PASSWORD          Login password"
+      echo "  AUTH_SECRET            JWT signing secret (use a long random string)"
+      echo "  OPENAI_BASE_URL        OpenAI-compatible API base URL (e.g. https://api.openai.com/v1)"
+      echo "  OPENAI_API_KEY         API key for the OpenAI-compatible endpoint"
+      echo "  OPENAI_MODEL_NAME      Model name to use for /chat command (e.g. gpt-4o-mini)"
+      echo "  LITELLM_API_URL        LiteLLM proxy base URL for tool calling"
+      echo "  LITELLM_BEARER_TOKEN   Bearer token for LiteLLM proxy authentication"
       echo "  DEGRADED_THRESHOLD_MS  Latency threshold for degraded status (default: 3000)"
       exit 0
       ;;
@@ -53,7 +58,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 # ── Validate required env vars ────────────────────────────────────────────────
-REQUIRED_VARS=("AUTH_USERNAME" "AUTH_PASSWORD" "AUTH_SECRET")
+REQUIRED_VARS=("AUTH_USERNAME" "AUTH_PASSWORD" "AUTH_SECRET" "OPENAI_BASE_URL" "OPENAI_API_KEY" "OPENAI_MODEL_NAME" "LITELLM_API_URL" "LITELLM_BEARER_TOKEN")
 MISSING=()
 
 for var in "${REQUIRED_VARS[@]}"; do
